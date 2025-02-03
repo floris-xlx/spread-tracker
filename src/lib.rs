@@ -171,7 +171,6 @@
     html_favicon_url = "https://storage.googleapis.com/xylex_images/Svg/svgviewer-output%20(1).svg"
 )]
 
-
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![allow(rustdoc::invalid_rust_codeblocks)]
@@ -185,38 +184,21 @@ pub mod config;
 pub mod model;
 pub mod errors;
 
-
-
-
+use core::error;
 // import the necessary external crates into the hierarchy
 use std::fs::File;
 use std::io::Write;
 use std::error::Error as StdError;
 use reqwest::get;
-use serde_json::{
-    Value,
-    Map
-};
-
+use serde_json::{ Value, Map };
 
 // import the necessary modules into the hierarchy
 use crate::utils::regex_finder::find_symbol_spread;
-use crate::model::{
-    Symbol,
-    SymbolSpread
-};
-use crate::config::{
-    SpreadBrokerUrl,
-    Brokers
-};
-use crate::utils::format::{
-    wrap_json_under_key,
-    vec_to_json,
-    extract_broker_name
-};
+use crate::model::{ Symbol, SymbolSpread };
+use crate::config::{ SpreadBrokerUrl, Brokers };
+use crate::utils::format::{ wrap_json_under_key, vec_to_json, extract_broker_name };
 
-
-
+use tracing::{ info, warn, error };
 
 /// ### The `SpreadTracker` struct is used to track the spread of various symbols in the forex market.
 ///
@@ -224,9 +206,8 @@ use crate::utils::format::{
 ///
 pub struct SpreadTracker {
     spread_broker_url: SpreadBrokerUrl,
-    spread: SymbolSpread
+    spread: SymbolSpread,
 }
-
 
 impl SpreadTracker {
     /// The `get_spreads` function is used to get the spread of various symbols from the broker URL.
@@ -262,22 +243,25 @@ impl SpreadTracker {
         config: SpreadBrokerUrl,
         brokers: Vec<Brokers>
     ) -> Result<Value, Box<dyn StdError + Send + Sync + 'static>> {
-
         let mut all_broker_spreads: Map<String, Value> = serde_json::Map::new();
 
         for broker in brokers {
             let url: String = config.get_url(broker.clone());
             let url: &str = url.as_str();
+            info!("URL: {}", url);
 
             let name: String = extract_broker_name(url).unwrap_or_else(|_| broker.to_string());
 
-            let spread_tracker: Result<String, Box<dyn StdError + Send + Sync>> = SpreadTracker::download_html_body(url).await;
-
+            let spread_tracker: Result<
+                String,
+                Box<dyn StdError + Send + Sync>
+            > = SpreadTracker::download_html_body(url).await;
+            info!("Spread Tracker: {:#?}", spread_tracker);
 
             if let Ok(body) = spread_tracker {
                 if let Ok(results) = SpreadTracker::regex_find_symbol_spread(&body).await {
                     if let Ok(json_output) = vec_to_json(results) {
-
+                        info!("JSON Output: {:#?}", json_output);
                         // Wrap the JSON output under the broker's name
                         all_broker_spreads.insert(name, json_output);
                     }
@@ -308,7 +292,6 @@ impl SpreadTracker {
     pub async fn download_html_body(
         url: &str
     ) -> Result<String, Box<dyn StdError + Send + Sync + 'static>> {
-
         // Download the HTML body
         let response = get(url).await;
         if response.is_err() {
@@ -320,13 +303,15 @@ impl SpreadTracker {
         }
         let body: String = text.unwrap();
 
-        let file_result = File::create("body.txt");
+        let file_result: Result<File, std::io::Error> = File::create("body.txt");
         if file_result.is_err() {
+            error!("Failed to create file: {:#?}", file_result.as_ref().err().unwrap());
             return Err(Box::new(file_result.err().unwrap()));
         }
         let mut file: File = file_result.unwrap();
         let write_result = write!(file, "{}", body);
         if write_result.is_err() {
+            error!("Failed to write to file: {:#?}", write_result.as_ref().err().unwrap());
             return Err(Box::new(write_result.err().unwrap()));
         }
 
@@ -354,12 +339,11 @@ impl SpreadTracker {
     ///
     pub async fn regex_find_symbol_spread(
         body: &str
-    ) -> Result<Vec<String>, Box<dyn StdError + Send + Sync + 'static>>{
+    ) -> Result<Vec<String>, Box<dyn StdError + Send + Sync + 'static>> {
         let results: Vec<String> = find_symbol_spread(body);
 
+        info!("Results: {:#?}", results);
 
         Ok(results)
     }
-
-
 }

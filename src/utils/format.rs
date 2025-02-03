@@ -14,6 +14,12 @@ use crate::model::{
     FromStr
 };
 
+use tracing::{
+    info,
+    warn,
+    error
+};
+
 /// # Converts a vector of strings into a JSON string, where each string represents a `SymbolSpread`.
 ///
 /// ### Arguments
@@ -46,22 +52,34 @@ pub fn vec_to_json(
 
         let symbol = match Symbol::from_str(parts[0]) {
             Ok(sym) => sym,
-            Err(_) => return Err("Failed to parse symbol".into()),
+            Err(_) => {
+                error!("Failed to parse symbol");
+                return Err("Failed to parse symbol".into());
+            },
         };
 
         let ask = match parts[1].parse::<f64>() {
             Ok(num) => num,
-            Err(_) => return Err("Failed to parse ask price".into()),
+            Err(_) => {
+                error!("Failed to parse ask price");
+                return Err("Failed to parse ask price".into());
+            },
         };
 
         let bid = match parts[2].parse::<f64>() {
             Ok(num) => num,
-            Err(_) => return Err("Failed to parse bid price".into()),
+            Err(_) => {
+                error!("Failed to parse bid price");
+                return Err("Failed to parse bid price".into());
+            },
         };
 
         let spread = match parts[3].parse::<f64>() {
             Ok(num) => num,
-            Err(_) => return Err("Failed to parse spread".into()),
+            Err(_) => {
+                error!("Failed to parse spread");
+                return Err("Failed to parse spread".into());
+            },
         };
 
         let symbol_spread = SymbolSpread {
@@ -88,6 +106,7 @@ pub fn vec_to_json(
             "bid": spread.bid,
             "spread": spread.spread,
         });
+        info!("Symbol spread: {:#?}", obj);
 
         json_array.push(obj);
     }

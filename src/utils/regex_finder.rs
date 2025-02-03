@@ -11,6 +11,12 @@ use regex::Regex;
 use crate::utils::cleaner::remove_banned_chars;
 use crate::utils::duplicates::remove_duplicates;
 
+use tracing::{
+    info,
+    warn,
+    error
+};
+
 /// # Find the symbol spread in the HTML body.
 ///
 ///
@@ -68,6 +74,8 @@ pub fn find_symbol_spread(
         words.iter().any(|&word| Symbol::is_valid_symbol(word))
     }).collect();
 
+
+
     let numbers_and_symbols: Vec<String> = valid_symbols.into_iter().map(|line| {
         let words: Vec<&str> = line.split_whitespace().filter(|&word| {
             Symbol::is_valid_symbol(word) || word.parse::<f32>().is_ok()
@@ -79,6 +87,7 @@ pub fn find_symbol_spread(
     // clean duplicates
     let cleaned_lines: Vec<String> = remove_duplicates(numbers_and_symbols);
 
+    info!("Found symbol spread in the body");
 
     cleaned_lines
 }
